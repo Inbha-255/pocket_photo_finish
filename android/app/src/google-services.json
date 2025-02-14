@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "582964422062",
+    "project_id": "pocket-photo-finish",
+    "storage_bucket": "pocket-photo-finish.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582964422062:android:70b71a8e1ce82a0834d43f",
+        "android_client_info": {
+          "package_name": "com.graspear.pocket_photo_finish"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJymznzm-D1AU9hdh2SV7DGVuc167Nx30"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
