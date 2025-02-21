@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart'; // Import Get package for navigation
+import 'package:google_fonts/google_fonts.dart';
+import '../../constants/colors.dart';
 import 'add_athlete.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,18 +23,44 @@ class _BasicModeScreenState extends State<BasicModeScreen> {
     super.initState();
     _loadSelectedAthlete();
   }
+Future<void> _loadSelectedAthlete() async {
+  final prefs = await SharedPreferences.getInstance();
+  final athleteJson = prefs.getString('selectedAthlete');
+
+  if (athleteJson == null) {
+    final username = prefs.getString("user_identifier") ?? "Default Athlete"; // ✅ Get logged-in username
+    final userUuid = prefs.getString("user_uuid") ?? "default_uuid"; // ✅ Ensure UUID is included
+    Map<String, dynamic> defaultAthlete = {
+      "name": username, // ✅ Set name as username
+      "number": 1, // ✅ Default number is 1
+      "player_Id": userUuid,
+    };
+
+    print("✅ Storing Default Athlete: $defaultAthlete");
+    await prefs.setString("selectedAthlete", jsonEncode(defaultAthlete));
+
+    setState(() {
+      selectedAthlete = defaultAthlete;
+    });
+  } else {
+    Map<String, dynamic> athlete = jsonDecode(athleteJson);
+
+    // ✅ Ensure `player_Id` exists
+    if (!athlete.containsKey("player_Id")) {
+      print("❌ Missing player_Id! Fixing athlete data...");
+      athlete["player_Id"] = prefs.getString("user_uuid") ?? "default_uuid";
+      await prefs.setString("selectedAthlete", jsonEncode(athlete)); // ✅ Update athlete data
+    }
+
+    setState(() {
+      selectedAthlete = athlete;
+    });
+  }
+}
+
 
   
- Future<void> _loadSelectedAthlete() async {
-    final prefs = await SharedPreferences.getInstance();
-    final athleteJson = prefs.getString('selectedAthlete');
-    if (athleteJson != null) {
-      setState(() {
-        selectedAthlete = jsonDecode(athleteJson);
-      });
-    }
-  }
-
+ 
   // Navigate to AddAthletePage and get the selected athlete
   void _navigateToSelectAthlete() async {
     final athlete = await Get.to(() => const AddAthletePage());
@@ -51,10 +79,13 @@ class _BasicModeScreenState extends State<BasicModeScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 26, 25, 25),
-        title: const Text(
+        backgroundColor: AppColors.primaryColor,
+        title: Text(
           "Basic Mode",
-          style: TextStyle(color: Colors.white),
+          style: GoogleFonts.roboto(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
         ),
         leading: IconButton(
           onPressed: () {
@@ -112,32 +143,32 @@ class _BasicModeScreenState extends State<BasicModeScreen> {
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Athlete'),
-                                content: const Text(
-                                  "Athletes are assigned lap times to track individual performance during a session "
-                                  "and review it later in the history. "
-                                  "In Basic Mode, you can focus on timing just one athlete, keeping it simple and streamlined.",
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Get.back();
-                                    },
-                                    child: const Text("OK"),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                        icon: const Icon(Icons.help),
-                      ),
+                      // IconButton(
+                      //   onPressed: () {
+                      //     showDialog(
+                      //       context: context,
+                      //       builder: (BuildContext context) {
+                      //         return AlertDialog(
+                      //           title: const Text('Athlete'),
+                      //           content: const Text(
+                      //             "Athletes are assigned lap times to track individual performance during a session "
+                      //             "and review it later in the history. "
+                      //             "In Basic Mode, you can focus on timing just one athlete, keeping it simple and streamlined.",
+                      //           ),
+                      //           actions: [
+                      //             TextButton(
+                      //               onPressed: () {
+                      //                 Get.back();
+                      //               },
+                      //               child: const Text("OK"),
+                      //             ),
+                      //           ],
+                      //         );
+                      //       },
+                      //     );
+                      //   },
+                      //   icon: const Icon(Icons.help),
+                      // ),
                     ],
                   ),
 
@@ -179,13 +210,13 @@ class _BasicModeScreenState extends State<BasicModeScreen> {
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.zero,
                         ),
-                        backgroundColor: const Color.fromARGB(255, 14, 0, 0),
+                        backgroundColor: AppColors.boxcolor,
                       ),
                       child: Text(
                         selectedAthlete != null
                             ? 'Change Athlete'
                             : 'Add Athlete',
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: AppColors.backgroundColor),
                       ),
                     ),
                   ),
@@ -225,7 +256,7 @@ class _BasicModeScreenState extends State<BasicModeScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 47, 53, 68),
+                  backgroundColor: AppColors.boxcolor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(0),
                   ),

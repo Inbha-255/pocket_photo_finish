@@ -1,5 +1,4 @@
 // ignore_for_file: use_build_context_synchronously, avoid_print
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -28,7 +27,6 @@ class _AddAthletePageState extends State<AddAthletePage> {
     super.initState();
     _isMounted = true;
     _fetchAthletes();
-    
   }
 
   @override
@@ -46,87 +44,113 @@ class _AddAthletePageState extends State<AddAthletePage> {
         .toList();
   }
 
-Future<void> _fetchAthletes() async {
-  final prefs = await SharedPreferences.getInstance();
-  String? token = prefs.getString("auth_token");
-  if (token == null) return;
+  Future<void> _fetchAthletes() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("auth_token");
+    if (token == null) return;
 
-  try {
-    final response = await http.get(
-      Uri.parse("$apiUrl/getAthlete"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Accept": "application/json"
-      },
-    );
+    try {
+      final response = await http.get(
+        Uri.parse("$apiUrl/getAthlete"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json"
+        },
+      );
 
-    if (response.statusCode == 200 && _isMounted) {
-      setState(() {
-        _athletes = List<Map<String, dynamic>>.from(jsonDecode(response.body));
-        _updateAvailableNumbers();
-      });
+      if (response.statusCode == 200 && _isMounted) {
+        setState(() {
+          _athletes =
+              List<Map<String, dynamic>>.from(jsonDecode(response.body));
+          _updateAvailableNumbers();
+        });
+      }
+    } catch (e) {
+      print("Error fetching athletes: $e");
     }
-  } catch (e) {
-    print("Error fetching athletes: $e");
   }
-}
-
 
   Future<void> _addAthlete() async {
-  final prefs = await SharedPreferences.getInstance();
-  String? token = prefs.getString("auth_token");
-  if (token == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("auth_token");
+    if (token == null) return;
 
-  if (_nameController.text.isEmpty || _selectedNumber == null) return;
+    if (_nameController.text.isEmpty || _selectedNumber == null) return;
 
-  try {
-    final response = await http.post(
-      Uri.parse(
-          "$apiUrl/addAthlete?name=${_nameController.text.trim()}&number=$_selectedNumber"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Accept": "application/json"
-      },
-    );
+    try {
+      final response = await http.post(
+        Uri.parse(
+            "$apiUrl/addAthlete?name=${_nameController.text.trim()}&number=$_selectedNumber"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json"
+        },
+      );
 
-    if (response.statusCode == 200) {
-      if (_isMounted) {
-        setState(() {
-          _fetchAthletes(); // Refresh the list without closing the page
-        });
+      if (response.statusCode == 200) {
+        if (_isMounted) {
+          setState(() {
+            _fetchAthletes(); // Refresh the list without closing the page
+          });
+        }
       }
+    } catch (e) {
+      print("Error adding athlete: $e");
     }
-  } catch (e) {
-    print("Error adding athlete: $e");
   }
-}
 
-Future<void> _editAthlete(
-    String playerId, String name, int oldNumber, int newNumber) async {
+  Future<void> _editAthlete(String playerId, String name, int oldNumber, int newNumber) async {
   final prefs = await SharedPreferences.getInstance();
   String? token = prefs.getString("auth_token");
-  if (token == null) return;
+  if (token == null) {
+    print("❌ No auth token found.");
+    return;
+  }
 
   try {
+    // ✅ Ensure the correct request format as per old working code
+    final url = Uri.parse("$apiUrl/editAthlete/$playerId/$name/$newNumber");
+    
+    print("🔹 Sending Edit Request to: $url");
+
     final response = await http.put(
-      Uri.parse("$apiUrl/editAthlete/$playerId/$name/$newNumber"),
+      url,
       headers: {
         "Authorization": "Bearer $token",
         "Accept": "application/json"
       },
     );
 
+    print("🔹 Response Status Code: ${response.statusCode}");
+    print("🔹 Response Body: ${response.body}");
+
     if (response.statusCode == 200) {
+      // ✅ If the edited athlete is the selected one, update SharedPreferences
+      final selectedAthleteJson = prefs.getString("selectedAthlete");
+      if (selectedAthleteJson != null) {
+        Map<String, dynamic> selectedAthlete = jsonDecode(selectedAthleteJson);
+        if (selectedAthlete["number"] == oldNumber) {
+          selectedAthlete["name"] = name;
+          selectedAthlete["number"] = newNumber;
+          await prefs.setString("selectedAthlete", jsonEncode(selectedAthlete));
+        }
+      }
+
+      // ✅ Refresh the athlete list
       if (_isMounted) {
         setState(() {
-          _fetchAthletes(); // Refresh the list without closing the page
+          _fetchAthletes();
         });
       }
+    } else {
+      print("❌ Error updating athlete: ${response.body}");
     }
   } catch (e) {
-    print("Error editing athlete: $e");
+    print("❌ Exception while updating athlete: $e");
   }
 }
+
+
   Future<void> _deleteAthlete(int number) async {
     final prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString("auth_token");
@@ -147,106 +171,115 @@ Future<void> _editAthlete(
   }
 
   void _showCreateAthleteDialog({Map<String, dynamic>? athlete}) async {
-    int? previousNumber;
-    if (athlete != null) {
-      _nameController.text = athlete["name"];
-      previousNumber = athlete["number"];
-      _selectedNumber = previousNumber;
-    } else {
-      _nameController.clear();
-      _selectedNumber = _availableNumbers.first;
-    }
+  int? previousNumber;
+  String? playerId;
+  
+  if (athlete != null) {
+    _nameController.text = athlete["name"];
+    previousNumber = athlete["number"];
+    playerId = athlete["player_Id"]; // ✅ Store player ID for editing
 
-    await showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(athlete == null ? 'Create New Athlete' : 'Edit Athlete'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text("Name  "),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        border: UnderlineInputBorder(),
-                      ),
+    if (playerId == null || playerId.isEmpty) {
+      print("❌ Error: Invalid playerId received for editing.");
+      return;
+    }
+    _selectedNumber = previousNumber;
+  } else {
+    _nameController.clear();
+    _selectedNumber = _availableNumbers.first;
+  }
+
+  await showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: Text(athlete == null ? 'Create New Athlete' : 'Edit Athlete'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text("Name  "),
+                Expanded(
+                  child: TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      border: UnderlineInputBorder(),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text('Number:'),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: SizedBox(
-                      height: 120,
-                      child: CupertinoPicker(
-                        itemExtent: 40.0,
-                        scrollController: FixedExtentScrollController(
-                          initialItem:
-                              _availableNumbers.indexOf(_selectedNumber!),
-                        ),
-                        onSelectedItemChanged: (int index) {
-                          if (_isMounted) {
-                            setState(() {
-                              _selectedNumber = _availableNumbers[index];
-                            });
-                          }
-                        },
-                        children: _availableNumbers
-                            .map((number) =>
-                                Center(child: Text(number.toString())))
-                            .toList(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                if (athlete == null) {
-                  _addAthlete();
-                } else {
-                  _editAthlete(
-                      athlete["player_Id"],
-                      _nameController.text.trim(),
-                      previousNumber!,
-                      _selectedNumber!);
-                }
-                if (_isMounted) {
-                  setState(() {});
-                  _fetchAthletes(); // Refresh the list
-                }
-                Navigator.of(dialogContext).pop(); // Close the dialog correctly
-              },
-              child: const Text("Save"),
+                ),
+              ],
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text('Number:'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 120,
+                    child: CupertinoPicker(
+                      itemExtent: 40.0,
+                      scrollController: FixedExtentScrollController(
+                        initialItem: _availableNumbers.indexOf(_selectedNumber!),
+                      ),
+                      onSelectedItemChanged: (int index) {
+                        if (_isMounted) {
+                          setState(() {
+                            _selectedNumber = _availableNumbers[index];
+                          });
+                        }
+                      },
+                      children: _availableNumbers
+                          .map((number) => Center(child: Text(number.toString())))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
-        );
-      },
-    );
-  }
- void _selectAthlete(Map<String, dynamic> athlete) async {
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              if (athlete == null) {
+                _addAthlete();
+              } else {
+                _editAthlete(
+                  playerId!, // ✅ Pass correct player ID
+                  _nameController.text.trim(),
+                  previousNumber!,
+                  _selectedNumber!,
+                );
+              }
+              if (_isMounted) {
+                setState(() {});
+                _fetchAthletes();
+              }
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text("Save"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+  void _selectAthlete(Map<String, dynamic> athlete) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selectedAthlete', jsonEncode(athlete));
     Get.back(result: athlete); // Return selected athlete to BasicModeScreen
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,7 +288,8 @@ Future<void> _editAthlete(
         backgroundColor: AppColors.primaryColor,
         title: const Text('Add Athlete', style: TextStyle(color: Colors.white)),
         leading: IconButton(
-          onPressed: () => Get.back(),
+          onPressed: () => Get.offAllNamed(
+              '/BasicModeScreen'), // ✅ Navigate to BasicModeScreen
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
         actions: [
@@ -276,7 +310,7 @@ Future<void> _editAthlete(
                   padding: const EdgeInsets.only(top: 6),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(5),
-                    tileColor: AppColors.scaffoldColor,
+                    tileColor: AppColors.backgroundColor,
                     leading: Container(
                       width: 30,
                       height: 30,
@@ -306,7 +340,8 @@ Future<void> _editAthlete(
                               _showCreateAthleteDialog(athlete: athlete),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.black),
+                          icon: const Icon(Icons.delete,
+                              color: Color.fromARGB(255, 148, 2, 2)),
                           onPressed: () => _deleteAthlete(athlete["number"]),
                         ),
                       ],

@@ -7,7 +7,9 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:intl/intl.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../add_athlete.dart';
 import 'dtetected_page.dart';
+import 'dart:math';
 
 class StopwatchScreen extends StatelessWidget {
   final List<CameraDescription> cameras;
@@ -16,8 +18,11 @@ class StopwatchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final StopwatchController controller = Get.put(StopwatchController(cameras: cameras));
+    final StopwatchController controller =
+        Get.put(StopwatchController(cameras: cameras));
 
+    double screenHeight = MediaQuery.of(context).size.height;
+    double lineHeight = min(screenHeight * 0.65, screenHeight * 0.8);
     return SafeArea(
       child: Scaffold(
         body: Stack(
@@ -26,10 +31,13 @@ class StopwatchScreen extends StatelessWidget {
             GetBuilder<StopwatchController>(
               builder: (controller) {
                 if (controller.cameraController.value.isInitialized) {
-                  final previewSize = controller.cameraController.value.previewSize!;
+                  final previewSize =
+                      controller.cameraController.value.previewSize!;
                   final screenSize = MediaQuery.of(context).size;
-                  final previewAspectRatio = previewSize.height / previewSize.width;
-                  final screenAspectRatio = screenSize.width / screenSize.height;
+                  final previewAspectRatio =
+                      previewSize.height / previewSize.width;
+                  final screenAspectRatio =
+                      screenSize.width / screenSize.height;
 
                   return Transform.rotate(
                     angle: Platform.isAndroid ? 3.1416 / 2 : 0,
@@ -58,31 +66,57 @@ class StopwatchScreen extends StatelessWidget {
                 }
               },
             ),
-
-            // **Full-Screen Vertical Line (Green -> Red on Motion)**
-            Positioned.fill(
-              child: Align(
-                alignment: Alignment.center,
-                child: Obx(() => Container(
-                      width: 4,
-                      height: double.infinity, // Ensures full-screen coverage
-                      color: controller.isMotionDetected.value ? Colors.red : Colors.green,
-                    )),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () {
+                  Get.to(() => AddAthletePage()); // Navigate to Add Athlete Page
+                },
               ),
             ),
 
+            // **Full-Screen Vertical Line (Green -> Red on Motion)**
+            Positioned(
+              top: 0,
+              left: MediaQuery.of(context).size.width / 2 - 2,
+              right: MediaQuery.of(context).size.width / 2 - 2,
+              child: Align(
+                alignment: Alignment.center,
+                child: Obx(() => Container(
+                      width: 2,
+                      height: lineHeight, // Ensures full-screen coverage
+                      color: controller.isMotionDetected.value
+                          ? Colors.red
+                          : Colors.green,
+                    )),
+              ),
+            ),
             // Stopwatch and Buttons
             Positioned(
-              bottom: 16,
+              bottom: 0,
               left: 16,
               right: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  //const SizedBox(height: 10),
+                  // Obx(() => Text(
+                  //       'Start Time: ${controller.startTime != null ? controller._formatTimestamp(controller.startTime) : "Not started"}',
+                  //       style: const TextStyle(
+                  //         fontSize: 20,
+                  //         fontWeight: FontWeight.bold,
+                  //         color: Colors.white,
+                  //         shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                  //       ),
+                  //     )),
+                  const SizedBox(height: 8),
                   Obx(() => Text(
-                        'Elapsed Time: ${controller.elapsedTime.value}',
+                        'Stopwatch time: ${controller.elapsedTime.value}',
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           shadows: [Shadow(blurRadius: 2, color: Colors.black)],
@@ -90,7 +124,9 @@ class StopwatchScreen extends StatelessWidget {
                       )),
                   const SizedBox(height: 16),
                   Obx(() => ElevatedButton(
-                        onPressed: controller.isRecording.value ? null : controller.startRecording,
+                        onPressed: controller.isRecording.value
+                            ? null
+                            : controller.startRecording,
                         child: const Text('Click to Start'),
                       )),
                   Obx(() => controller.isRecording.value
@@ -99,6 +135,10 @@ class StopwatchScreen extends StatelessWidget {
                           child: const Text('Stop Recording'),
                         )
                       : const SizedBox.shrink()),
+                  ElevatedButton(
+                    onPressed: controller.resetStopwatch,
+                    child: const Text('Reset'),
+                  ),
                 ],
               ),
             ),
@@ -115,7 +155,7 @@ class StopwatchController extends GetxController {
   late PoseDetector poseDetector;
   final stopwatch = Stopwatch();
   final isRecording = false.obs;
-  final elapsedTime = '00:00'.obs;
+  final elapsedTime = '00.00'.obs;
   DateTime? startTime;
   DateTime? endTime;
   final isMotionDetected = false.obs; // Track motion detection status
@@ -182,17 +222,25 @@ class StopwatchController extends GetxController {
   }
 
   void _updateElapsedTime() {
+
+    
     if (isRecording.value) {
       Future.delayed(const Duration(milliseconds: 50), () {
         if (isRecording.value) {
           final elapsed = stopwatch.elapsed;
           elapsedTime.value =
-              '${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}:' 
+              '${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}.'
               '${((elapsed.inMilliseconds % 1000) ~/ 10).toString().padLeft(2, '0')}';
           _updateElapsedTime();
         }
       });
     }
+  }
+
+  void resetStopwatch() {
+    stopwatch.reset();
+    elapsedTime.value = '00.00';
+    update();
   }
 
   Future<void> _detectMotion() async {
@@ -212,9 +260,10 @@ class StopwatchController extends GetxController {
           String formattedStartTime = _formatTimestamp(startTime);
           String formattedEndTime = _formatTimestamp(endTime);
 
-          double detectedX = poses.first.landmarks[PoseLandmarkType.leftAnkle]?.x ??
-                             poses.first.landmarks[PoseLandmarkType.rightAnkle]?.x ??
-                             MediaQuery.of(Get.context!).size.width / 2;
+          double detectedX =
+              poses.first.landmarks[PoseLandmarkType.leftAnkle]?.x ??
+                  poses.first.landmarks[PoseLandmarkType.rightAnkle]?.x ??
+                  MediaQuery.of(Get.context!).size.width / 2;
 
           Get.to(() => DetectionResultScreen(
                 imagePath: image.path,

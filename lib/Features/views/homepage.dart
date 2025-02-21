@@ -1,7 +1,11 @@
+//home page
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants/colors.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart'; // Necessary for launching URLs
 
 class Homepage extends StatefulWidget {
@@ -16,7 +20,7 @@ class _HomepageState extends State<Homepage> {
   @override
   void initState() {
     super.initState();
-
+    _checkTokenValidity();
     // ✅ Check if an argument (index) was passed during navigation
     if (Get.arguments != null && Get.arguments is Map<String, dynamic>) {
       setState(() {
@@ -24,6 +28,49 @@ class _HomepageState extends State<Homepage> {
       });
     }
   }
+
+  Future<void> _checkTokenValidity() async {
+    final prefs = await SharedPreferences.getInstance();
+    int? expiryTime = prefs.getInt("token_expiry");
+
+    if (expiryTime != null) {
+      int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      if (currentTime >= expiryTime) {
+        _logoutUser(); // ✅ Logout if token expired
+      }
+    }
+  }
+void _logoutUser() async {
+  final prefs = await SharedPreferences.getInstance();
+
+   // Remove authentication-related data
+  await prefs.remove("auth_token");   // Clear authentication token
+  await prefs.remove("token_expiry"); // Clear token expiry time
+  await prefs.remove("user_identifier");
+  
+  // Remove all stored user-related data
+  await prefs.clear(); // This clears all stored data
+
+  Get.offNamed("/login"); // Navigate to login screen
+
+  Get.snackbar(
+    "Session Expired",
+    "Please log in again.",
+    backgroundColor: Colors.redAccent,
+    colorText: Colors.white,
+  );
+}
+
+  // void _logoutUser() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.remove("auth_token"); // Remove token
+  //   await prefs.remove("token_expiry"); // Remove expiry time
+  //   await prefs.remove("user_identifier"); // Remove user identifier
+
+  //   Get.offNamed("/login");
+  //   Get.snackbar("Session Expired", "Please log in again.",
+  //       backgroundColor: Colors.redAccent, colorText: Colors.white);
+  // }
 
   void _navigateToPage(int index) {
     if (_currentIndex != index) {
@@ -53,7 +100,8 @@ class _HomepageState extends State<Homepage> {
         backgroundColor: AppColors.primaryColor,
         title: Text(
           "Pocket Photo Finish",
-          style: GoogleFonts.roboto(color: AppColors.backgroundColor),
+          style: GoogleFonts.roboto(
+              color: AppColors.backgroundColor, fontWeight: FontWeight.bold),
         ),
         leading: Builder(
           builder: (context) {
@@ -75,11 +123,12 @@ class _HomepageState extends State<Homepage> {
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: AppColors.primaryColor,
               ),
               child: Text(
                 'More Options',
-                style: TextStyle(color: Color.fromARGB(255, 250, 245, 245), fontSize: 24),
+                style: TextStyle(
+                    color: Color.fromARGB(255, 250, 245, 245), fontSize: 24),
               ),
             ),
             ListTile(
@@ -118,8 +167,8 @@ class _HomepageState extends State<Homepage> {
               leading: const Icon(Icons.logout),
               title: const Text('Log out'),
               onTap: () {
-                Navigator.of(context).pop();
-                Get.toNamed("/login");
+                _logoutUser(); // ✅ Call the function properly
+                Get.offAllNamed("/login"); // ✅ Navigate to login after logout
               },
             ),
           ],
@@ -131,42 +180,31 @@ class _HomepageState extends State<Homepage> {
           height: double.infinity,
           decoration: BoxDecoration(
             image: DecorationImage(
-              image: AssetImage("assets/image.jpeg"),
-              fit: BoxFit.cover,
-            ),
+                image: AssetImage("assets/imagehome.jpg"),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter // ✅ Shifts the image to the left
+                ),
           ),
           child: Padding(
-            padding: const EdgeInsets.only(top: 180),
+            padding: const EdgeInsets.only(top: 50),
             child: Column(
               children: [
-                // Text(
-                //   "        Welcome to\nPocket Photo Finish",
-                //   style: TextStyle(
-                //     color: AppColors.backgroundColor,
-                //     fontWeight: FontWeight.bold,
-                //     fontSize: 30,
-                //   ),
-                // ),
                 const SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: () {
                     Get.toNamed("/BasicModeScreen");
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:const Color.fromARGB(255, 56, 52, 52),
+                    backgroundColor: AppColors.backgroundColor,
                     shape: RoundedRectangleBorder(
-                      
-                      borderRadius: BorderRadius.zero,
-                      side: const BorderSide(
-        color: Colors.white, // ✅ Border color
-        width: 2, // ✅ Border thickness
-      ),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     minimumSize: const Size(300, 50),
                   ),
                   child: Text(
                     "CREATE SESSION",
-                    style: TextStyle(color: AppColors.backgroundColor),
+                    style:
+                        TextStyle(color: const Color.fromARGB(255, 13, 13, 14)),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -178,8 +216,8 @@ class _HomepageState extends State<Homepage> {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: AppColors.primaryColor,
         currentIndex: _currentIndex,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: const Color(0xFF676767),
+        selectedItemColor: AppColors.backgroundColor,
+        unselectedItemColor: AppColors.ropecolor,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
         onTap: _navigateToPage, // ✅ Calls the updated function
@@ -256,7 +294,7 @@ class _HomepageState extends State<Homepage> {
               backgroundColor: AppColors.backgroundColor,
               icon: Icon(Icons.play_circle_outlined,
                   color: const Color.fromARGB(255, 5, 6, 8)),
-              label: Text("New: ACCURACY STUDY",
+              label: Text("NEW: ACCURACY STUDY",
                   style:
                       TextStyle(color: const Color.fromARGB(255, 13, 13, 14))),
             ),
@@ -270,13 +308,12 @@ class _HomepageState extends State<Homepage> {
               onPressed: () {
                 print('FAB 2 clicked');
               },
-              backgroundColor:const Color.fromARGB(255, 56, 52, 52),
+              backgroundColor: AppColors.backgroundColor,
               icon: Icon(Icons.play_circle_outlined,
-                  color: AppColors.backgroundColor),
-              label: Text(
-                "NEW: TUTORIAL VIDEOS",
-                style: TextStyle(color: AppColors.backgroundColor),
-              ),
+                  color: Color.fromARGB(255, 5, 6, 8)),
+              label: Text("NEW: TUTORIAL VIDEOS",
+                  style:
+                      TextStyle(color: const Color.fromARGB(255, 13, 13, 14))),
             ),
           ),
         ],

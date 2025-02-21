@@ -265,16 +265,20 @@ Future<void> _editAthlete(
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        automaticallyImplyLeading: true,
         backgroundColor: AppColors.primaryColor,
         title: const Text('Athletes', style: TextStyle(color: Colors.white)),
-        leading: IconButton(
-          onPressed: () => Get.back(),
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
+        // leading: IconButton(
+        //   onPressed: () => Get.back(),
+        //   icon: const Icon(Icons.arrow_back, color: Colors.white),
+        // ),
         actions: [
-          IconButton(
-            onPressed: () => _showCreateAthleteDialog(),
-            icon: const Icon(Icons.person_add, color: Colors.white),
+          Hero(
+            tag: "uniqueHeroTag",
+            child: IconButton(
+              onPressed: () => _showCreateAthleteDialog(),
+              icon: const Icon(Icons.person_add, color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -288,7 +292,7 @@ Future<void> _editAthlete(
                   padding: const EdgeInsets.only(top: 6),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(5),
-                    tileColor: AppColors.scaffoldColor,
+                    tileColor: AppColors.backgroundColor,
                     leading: Container(
                       width: 30,
                       height: 30,
@@ -318,7 +322,7 @@ Future<void> _editAthlete(
                               _showCreateAthleteDialog(athlete: athlete),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.black),
+                          icon: const Icon(Icons.delete, color: Color.fromARGB(255, 156, 3, 3)),
                           onPressed: () => _deleteAthlete(athlete["number"]),
                         ),
                       ],
