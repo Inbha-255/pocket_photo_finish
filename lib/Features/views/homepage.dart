@@ -50,8 +50,8 @@ void _logoutUser() async {
   
   // Remove all stored user-related data
   await prefs.clear(); // This clears all stored data
-
-  Get.offNamed("/login"); // Navigate to login screen
+  Get.toNamed("/login", arguments: {"clearAthleteData": true});
+  //Get.offNamed("/login"); // Navigate to login screen
 
   Get.snackbar(
     "Session Expired",

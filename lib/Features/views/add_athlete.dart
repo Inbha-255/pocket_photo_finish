@@ -1,7 +1,8 @@
-// ignore_for_file: use_build_context_synchronously, avoid_print
+// ignore_for_file: use_build_context_synchronously, avoid_print 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_application_1/Features/views/basicmode.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -19,14 +20,22 @@ class _AddAthletePageState extends State<AddAthletePage> {
   int? _selectedNumber;
   late List<int> _availableNumbers;
   List<Map<String, dynamic>> _athletes = [];
+  Map<String, dynamic>? selectedAthlete;
   final String apiUrl = "https://api.jslpro.in:4661";
   bool _isMounted = false;
 
   @override
   void initState() {
     super.initState();
+    _availableNumbers = []; // Initialize it as an empty list
+    if (Get.arguments?['clearAthleteData'] == true) {
+      _athletes.clear();
+      _nameController.clear();
+      _clearStoredAthlete();
+      _selectedNumber = null;
+    }
     _isMounted = true;
-    _fetchAthletes();
+    _initializeAthlete();
   }
 
   @override
@@ -36,134 +45,225 @@ class _AddAthletePageState extends State<AddAthletePage> {
     super.dispose();
   }
 
-  void _updateAvailableNumbers() {
+  Future<void> _clearStoredAthlete() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('selectedAthlete');
+  }
+
+ Future<void> _initializeAthlete() async {
+  final prefs = await SharedPreferences.getInstance();
+  
+  // Get the token string from SharedPreferences.
+  String? token = prefs.getString("auth_token");
+  if (token == null) {
+    print("❌ Error: No token found");
+    return;
+  }
+
+  // Decode the token (which is a JSON string containing both the actual JWT and the userId).
+  Map<String, dynamic> tokenData = jsonDecode(token);
+  
+  // Extract the userId from the token data and use it as the player's UUID.
+  String? userIdFromToken = tokenData["userId"];
+  if (userIdFromToken == null) {
+    print("❌ Error: userId not found in token");
+    return;
+  }
+  String userUuid = userIdFromToken;
+
+  // Extract the actual JWT so that we can check its expiry.
+  String? actualJWT = tokenData["token"];
+  if (actualJWT == null) {
+    print("❌ Error: Actual JWT not found in token data");
+    return;
+  }
+
+  // Validate the token expiry.
+  try {
+    Map<String, dynamic> decodedToken = jsonDecode(
+      utf8.decode(base64.decode(base64.normalize(actualJWT.split(".")[1])))
+    );
+    int expiryTime = decodedToken["exp"] * 1000;
+    if (DateTime.now().millisecondsSinceEpoch > expiryTime) {
+      print("❌ Error: Token has expired");
+      return;
+    }
+  } catch (e) {
+    print("❌ Error decoding token: $e");
+    return;
+  }
+
+  // Get stored username from preferences.
+  String storedUserName = prefs.getString("user_identifier") ?? "Default Athlete";
+
+  // Check if the athlete is already in the list using the extracted userUuid.
+  bool userExists = _athletes.any((athlete) => athlete["player_Id"] == userUuid);
+
+  if (!userExists) {
+    setState(() {
+      _athletes.add({
+        "name": storedUserName,
+        "number": 1,
+        "player_Id": userUuid, // Use the UUID from the token
+      });
+    });
+    await _addAthlete(defaultName: storedUserName, defaultNumber: 1);
+  }
+}
+
+
+
+ void _updateAvailableNumbers() {
     final takenNumbers =
         _athletes.map((athlete) => athlete["number"] as int).toSet();
     _availableNumbers = List.generate(999, (index) => index + 1)
         .where((number) => !takenNumbers.contains(number))
         .toList();
-  }
+    if (_availableNumbers.isEmpty) {
+      _availableNumbers = [1];
+    }
+    print("Updated Available Numbers: $_availableNumbers");
 
-  Future<void> _fetchAthletes() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString("auth_token");
-    if (token == null) return;
-
-    try {
-      final response = await http.get(
-        Uri.parse("$apiUrl/getAthlete"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Accept": "application/json"
-        },
-      );
-
-      if (response.statusCode == 200 && _isMounted) {
-        setState(() {
-          _athletes =
-              List<Map<String, dynamic>>.from(jsonDecode(response.body));
-          _updateAvailableNumbers();
-        });
-      }
-    } catch (e) {
-      print("Error fetching athletes: $e");
+    if (_isMounted) {
+      setState(() {});
     }
   }
 
-  Future<void> _addAthlete() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString("auth_token");
-    if (token == null) return;
-
-    if (_nameController.text.isEmpty || _selectedNumber == null) return;
-
-    try {
-      final response = await http.post(
-        Uri.parse(
-            "$apiUrl/addAthlete?name=${_nameController.text.trim()}&number=$_selectedNumber"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Accept": "application/json"
-        },
-      );
-
-      if (response.statusCode == 200) {
-        if (_isMounted) {
-          setState(() {
-            _fetchAthletes(); // Refresh the list without closing the page
-          });
-        }
-      }
-    } catch (e) {
-      print("Error adding athlete: $e");
-    }
-  }
-
-  Future<void> _editAthlete(String playerId, String name, int oldNumber, int newNumber) async {
+Future<void> _addAthlete({String? defaultName, int? defaultNumber}) async {
   final prefs = await SharedPreferences.getInstance();
   String? token = prefs.getString("auth_token");
   if (token == null) {
     print("❌ No auth token found.");
     return;
   }
+ // Extract the token from JSON
+  Map<String, dynamic> tokenData = jsonDecode(token);
+  String? authToken = tokenData["token"]; // Fix: Extract authToken
+  String nameToSend = defaultName ?? _nameController.text.trim();
+  int numberToSend = defaultNumber ?? _selectedNumber ?? 1;
 
+  if (nameToSend.isEmpty) {
+    print("❌ Name cannot be empty.");
+    return;
+  }
+  
+  print("📤 Editing Athlete:");
+  print("🔹 Name: $nameToSend");
+  print("🔹 Number: $numberToSend");
+  
   try {
-    // ✅ Ensure the correct request format as per old working code
-    final url = Uri.parse("$apiUrl/editAthlete/$playerId/$name/$newNumber");
-    
-    print("🔹 Sending Edit Request to: $url");
+    final Uri uri = Uri.parse("$apiUrl/addAthlete?name=$nameToSend&number=$numberToSend");
+    print("🔹 Sending request to: $uri");
+    print("🔹 Auth Token: $token");
 
-    final response = await http.put(
-      url,
+    final response = await http.post(
+      uri,
       headers: {
-        "Authorization": "Bearer $token",
-        "Accept": "application/json"
+        "Authorization": "Bearer $authToken",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+
+
       },
     );
 
     print("🔹 Response Status Code: ${response.statusCode}");
     print("🔹 Response Body: ${response.body}");
 
-    if (response.statusCode == 200) {
-      // ✅ If the edited athlete is the selected one, update SharedPreferences
-      final selectedAthleteJson = prefs.getString("selectedAthlete");
-      if (selectedAthleteJson != null) {
-        Map<String, dynamic> selectedAthlete = jsonDecode(selectedAthleteJson);
-        if (selectedAthlete["number"] == oldNumber) {
-          selectedAthlete["name"] = name;
-          selectedAthlete["number"] = newNumber;
-          await prefs.setString("selectedAthlete", jsonEncode(selectedAthlete));
-        }
-      }
+    if (response.statusCode == 200 && _isMounted) {
+      final List<dynamic> responseData = jsonDecode(response.body);
+      final List<Map<String, dynamic>> updatedAthletes = responseData.map((athlete) {
+        return {
+          "player_Id": athlete["player_Id"],
+          "name": athlete["name"],
+          "number": athlete["number"],
+        };
+      }).toList();
 
-      // ✅ Refresh the athlete list
-      if (_isMounted) {
-        setState(() {
-          _fetchAthletes();
-        });
-      }
+      setState(() {
+        _athletes = updatedAthletes;
+        _updateAvailableNumbers();
+      });
+      print("✅ Athletes Updated: $_athletes");
+    } else if (response.statusCode == 403) {
+      print("❌ Forbidden: You do not have permission to access this resource.");
     } else {
-      print("❌ Error updating athlete: ${response.body}");
+      print("❌ Error Adding Athlete: ${response.body}");
     }
   } catch (e) {
-    print("❌ Exception while updating athlete: $e");
+    print("❌ Exception while adding athlete: $e");
   }
 }
 
+  Future<void> _editAthlete(String playerId, String name, int oldNumber, int number) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("auth_token");
+    if (token == null) {
+      print("❌ No auth token found.");
+      return;
+    }
+    // Extract the token from JSON
+  Map<String, dynamic> tokenData = jsonDecode(token);
+  String? authToken = tokenData["token"]; // Fix: Extract authToken
+  print("🔹 Editing athlete with ID: $playerId");
+if (playerId.isEmpty) {
+  print("❌ Error: playerId is empty, cannot proceed with edit.");
+  return;
+}
 
-  Future<void> _deleteAthlete(int number) async {
+    try {
+      final url = Uri.parse("$apiUrl/editAthlete/$playerId/$name/$number");
+      print("🔹 Sending Edit Request to: $url");
+
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $authToken",
+          "Accept": "application/json"
+        },
+      );
+
+      print("🔹 Response Status Code: ${response.statusCode}");
+      print("🔹 Response Body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        // Parse the updated list of athletes from the response
+        final updatedAthletes = List<Map<String, dynamic>>.from(jsonDecode(response.body));
+        setState(() {
+          _athletes = updatedAthletes;
+          _updateAvailableNumbers();
+        });
+        print("✅ Athletes Updated: $_athletes");
+      } else {
+        print("❌ Error Updating Athlete: ${response.body}");
+      }
+    } catch (e) {
+      print("❌ Exception while updating athlete: $e");
+    }
+  }
+
+  Future<void> _deleteAthlete(String playerId) async {
     final prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString("auth_token");
     if (token == null) return;
+    // Extract the token from JSON
+  Map<String, dynamic> tokenData = jsonDecode(token);
+  String? authToken = tokenData["token"]; // Fix: Extract authToken
 
     try {
       final response = await http.delete(
-        Uri.parse("$apiUrl/deleteAthlete/$number"),
-        headers: {"Authorization": "Bearer $token"},
+        Uri.parse("$apiUrl/deleteAthlete/$playerId"),
+        headers: {"Authorization": "Bearer $authToken"},
       );
 
       if (response.statusCode == 200) {
-        _fetchAthletes();
+        // Parse the updated list of athletes from the response
+        final updatedAthletes = List<Map<String, dynamic>>.from(jsonDecode(response.body));
+        setState(() {
+          _athletes = updatedAthletes;
+          _updateAvailableNumbers();
+        });
+        print("✅ Athletes Updated: $_athletes");
       }
     } catch (e) {
       print("Error deleting athlete: $e");
@@ -173,11 +273,11 @@ class _AddAthletePageState extends State<AddAthletePage> {
   void _showCreateAthleteDialog({Map<String, dynamic>? athlete}) async {
   int? previousNumber;
   String? playerId;
-  
+
   if (athlete != null) {
     _nameController.text = athlete["name"];
     previousNumber = athlete["number"];
-    playerId = athlete["player_Id"]; // ✅ Store player ID for editing
+    playerId = athlete["player_Id"]; // Store player ID for editing
 
     if (playerId == null || playerId.isEmpty) {
       print("❌ Error: Invalid playerId received for editing.");
@@ -186,8 +286,15 @@ class _AddAthletePageState extends State<AddAthletePage> {
     _selectedNumber = previousNumber;
   } else {
     _nameController.clear();
-    _selectedNumber = _availableNumbers.first;
+    _selectedNumber = _availableNumbers.isNotEmpty ? _availableNumbers.first : 1;
   }
+
+  int initialIndex = _availableNumbers.isNotEmpty
+      ? _availableNumbers.indexOf(_selectedNumber ?? _availableNumbers.first)
+      : 0; // Ensure it doesn't crash if list is empty
+
+  print("🔹 Opening Dialog: ${athlete == null ? 'Create' : 'Edit'} Athlete");
+  if (!mounted) return;
 
   await showDialog(
     context: context,
@@ -222,9 +329,9 @@ class _AddAthletePageState extends State<AddAthletePage> {
                   child: SizedBox(
                     height: 120,
                     child: CupertinoPicker(
-                      itemExtent: 40.0,
+                      itemExtent: 42.0,
                       scrollController: FixedExtentScrollController(
-                        initialItem: _availableNumbers.indexOf(_selectedNumber!),
+                        initialItem: initialIndex,
                       ),
                       onSelectedItemChanged: (int index) {
                         if (_isMounted) {
@@ -250,15 +357,11 @@ class _AddAthletePageState extends State<AddAthletePage> {
                 _addAthlete();
               } else {
                 _editAthlete(
-                  playerId!, // ✅ Pass correct player ID
+                  playerId!,
                   _nameController.text.trim(),
                   previousNumber!,
                   _selectedNumber!,
                 );
-              }
-              if (_isMounted) {
-                setState(() {});
-                _fetchAthletes();
               }
               Navigator.of(dialogContext).pop();
             },
@@ -274,11 +377,75 @@ class _AddAthletePageState extends State<AddAthletePage> {
   );
 }
 
-  void _selectAthlete(Map<String, dynamic> athlete) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('selectedAthlete', jsonEncode(athlete));
-    Get.back(result: athlete); // Return selected athlete to BasicModeScreen
+
+void _selectAthlete(Map<String, dynamic> athlete) async {
+  final prefs = await SharedPreferences.getInstance();
+  String? token = prefs.getString("auth_token");
+
+  if (token == null) {
+    print("Error: Authentication token is missing");
+    return;
   }
+
+  try {
+    Map<String, dynamic> tokenData = jsonDecode(token);
+    String? authToken = tokenData["token"];
+
+    if (authToken == null) {
+      print("Error: Invalid token format");
+      return;
+    }
+
+    if (!athlete.containsKey("player_Id")) {
+      print("Error: Athlete data does not contain player_Id");
+      return;
+    }
+
+    String playerId = athlete["player_Id"];
+    print("🔹 Selecting athlete with player_Id: $playerId");
+
+    final response = await http.get(
+      Uri.parse("$apiUrl/selectAthlete/$playerId"),
+      headers: {
+        "Authorization": "Bearer $authToken",
+        "Accept": "application/json"
+      },
+    );
+
+    print("🔹 Response Status Code: ${response.statusCode}");
+    print("🔹 Response Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      // Decode the response body.
+      dynamic decodedResponse = jsonDecode(response.body);
+
+      // If the API returns just a UUID string, update the athlete object.
+      if (decodedResponse is String) {
+        print("🔹 API returned a String, updating athlete object with new player_Id");
+        athlete["player_Id"] = decodedResponse;
+        selectedAthlete = athlete;
+      } else if (decodedResponse is Map<String, dynamic>) {
+        selectedAthlete = decodedResponse;
+      } else {
+        print("❌ Unexpected response format");
+        return;
+      }
+
+      await prefs.setString('selectedAthlete', jsonEncode(selectedAthlete));
+      print("✅ Athlete saved: $selectedAthlete");
+
+      // Navigate to BasicModeScreen with the selected athlete data.
+      Get.off(() => const BasicModeScreen(), arguments: selectedAthlete);
+    } else {
+      print("Error selecting athlete: ${response.statusCode} - ${response.body}");
+    }
+  } catch (e, stackTrace) {
+    print("Exception while selecting athlete: $e");
+    print(stackTrace);
+  }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -288,8 +455,7 @@ class _AddAthletePageState extends State<AddAthletePage> {
         backgroundColor: AppColors.primaryColor,
         title: const Text('Add Athlete', style: TextStyle(color: Colors.white)),
         leading: IconButton(
-          onPressed: () => Get.offAllNamed(
-              '/BasicModeScreen'), // ✅ Navigate to BasicModeScreen
+          onPressed: () => Get.offAllNamed('/BasicModeScreen'),
           icon: const Icon(Icons.arrow_back, color: Colors.white),
         ),
         actions: [
@@ -342,7 +508,7 @@ class _AddAthletePageState extends State<AddAthletePage> {
                         IconButton(
                           icon: const Icon(Icons.delete,
                               color: Color.fromARGB(255, 148, 2, 2)),
-                          onPressed: () => _deleteAthlete(athlete["number"]),
+                          onPressed: () => _deleteAthlete(athlete["player_Id"]),
                         ),
                       ],
                     ),

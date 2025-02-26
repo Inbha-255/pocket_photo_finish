@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -265,7 +267,7 @@ Future<void> _editAthlete(
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        automaticallyImplyLeading: true,
+        automaticallyImplyLeading: false,
         backgroundColor: AppColors.primaryColor,
         title: const Text('Athletes', style: TextStyle(color: Colors.white)),
         // leading: IconButton(

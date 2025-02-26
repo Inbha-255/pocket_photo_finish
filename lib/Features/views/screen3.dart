@@ -132,10 +132,10 @@ class _HistoryPageState extends State<HistoryPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: AppColors.primaryColor,
-        leading: IconButton(
-          onPressed: () => Get.back(),
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
+        // leading: IconButton(
+        //   onPressed: () => Get.back(),
+        //   icon: const Icon(Icons.arrow_back, color: Colors.white),
+        // ),
         title: const Text("History", style: TextStyle(color: Colors.white)),
       ),
       body: Padding(

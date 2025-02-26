@@ -13,11 +13,9 @@ class MyHttpOverrides extends HttpOverrides {
           (X509Certificate cert, String host, int port) => true;
   }
 }
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = MyHttpOverrides();
-
   // ✅ Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   String? token = prefs.getString("auth_token");

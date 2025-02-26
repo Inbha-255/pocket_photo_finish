@@ -80,7 +80,7 @@ class DetectionResultScreenState extends State<DetectionResultScreen> {
  Future<void> _loadAthleteData() async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   String? athleteData = prefs.getString('selectedAthlete');
-  String? storedToken = prefs.getString("auth_token");
+  String? storedToken = prefs.getString("auth_token"); // Ensure consistent key usage
 
   if (storedToken == null || storedToken.isEmpty) {
     print("❌ No authentication token found!");
@@ -91,6 +91,8 @@ class DetectionResultScreenState extends State<DetectionResultScreen> {
     });
   }
 
+  print("🔹 Athlete Data Loaded: $athleteData");
+
   if (athleteData == null) {
     print("❌ Athlete data is null! Retrying...");
     await Future.delayed(const Duration(milliseconds: 500));
@@ -100,8 +102,19 @@ class DetectionResultScreenState extends State<DetectionResultScreen> {
   try {
     Map<String, dynamic> athlete = jsonDecode(athleteData);
 
-    if (!athlete.containsKey("player_Id") || !athlete.containsKey("number")) {
-      print("❌ Invalid athlete data: $athlete");
+    // Debugging: Print all keys in the athlete map
+    print("🔹 Athlete Keys: ${athlete.keys}");
+
+    // Check if player_Id exists and is not null
+    if (!athlete.containsKey("player_Id") || athlete["player_Id"] == null) {
+      print("❌ Invalid athlete data: Missing or null player_Id");
+      _showSnackbar("Invalid athlete data! Please reselect athlete.");
+      return;
+    }
+
+    // Check if number exists and is not null
+    if (!athlete.containsKey("number") || athlete["number"] == null) {
+      print("❌ Invalid athlete data: Missing or null number");
       _showSnackbar("Invalid athlete data! Please reselect athlete.");
       return;
     }
@@ -110,67 +123,102 @@ class DetectionResultScreenState extends State<DetectionResultScreen> {
       athleteName = athlete['name'] ?? "Unknown Athlete";
       playerId = athlete['player_Id'];
       playerNumber = athlete['number'];
-      timingsId = playerId; 
+      timingsId = playerId;
       imageId = playerId;
     });
 
     print("✅ Loaded Athlete: $playerNumber $athleteName (ID: $playerId)");
-
   } catch (e) {
     print("❌ Error parsing athlete data: $e");
   }
 }
+Future<void> _saveDetectionData() async {
+  if (!mounted) return;
 
- 
-
-
-  // Load athlete details from SharedPreferences
-  // Future<void> _loadAthleteData() async {
-  //   final SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   String? athleteData = prefs.getString('selectedAthlete');
-  //   String? storedToken = prefs.getString("auth_token");
-  //   // setState(() {
-  //   //   token = storedToken;
-  //   // });
-  //   if (storedToken == null || storedToken.isEmpty) {
-  //   print("❌ No authentication token found!");
-  // } else {
-  //   print("🔹 Retrieved Token: $storedToken");
-  //   setState(() {
-  //     token = storedToken;
-  //   });
-  // }
-  //   if (athleteData != null) {
-  //     Map<String, dynamic> athlete = jsonDecode(athleteData);
-  //     setState(() {
-  //       athleteName = athlete['name'];
-  //       playerId = athlete['player_Id']; //  Use `player_Id` as UUID
-  //       playerNumber = athlete['number'];
-  //       timingsId = playerId; //  Set playerId as UUID
-  //       imageId = playerId;
-  //     });
-  //     print(
-  //         "✅ Loaded Athlete: $athleteName (ID: $playerId, Number: $playerNumber)");
-  //     print("🔹 Retrieved Token: $token");}
-  //     else {
-  //   print("❌ Athlete data is null! Retrying...");
-  //   await Future.delayed(const Duration(milliseconds: 500)); // Give time for SharedPreferences
-  //   return _loadAthleteData(); // Retry loading the data
-  //   }
-  // }
-
-  DateTime? safeParseDate(String dateStr) {
-    try {
-      if (dateStr.isEmpty) return null; // Handle empty date strings
-      print("🔹 Trying to parse date: $dateStr");
-      return DateFormat("yyyy-MM-ddTHH:mm:ss")
-          .parse(dateStr, true); // Handles ISO 8601
-    } catch (e) {
-      print("❌ Invalid Date Format: $dateStr - Error: $e");
-      return null;
+  if (playerId == null || playerNumber == null) {
+    print("🔹 Athlete data missing. Retrying load...");
+    await _loadAthleteData();
+    if (playerId == null || playerNumber == null) {
+      print("❌ Still no athlete selected!");
+      _showSnackbar('No athlete selected! Please reselect an athlete.');
+      return;
     }
   }
 
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? storedToken = prefs.getString("auth_token"); // Retrieve token
+
+  if (storedToken == null || storedToken.isEmpty) {
+    print("❌ Authentication token missing!");
+    _showSnackbar('Authentication token missing!');
+    return;
+  }
+
+  try {
+    // Parse the stored token JSON
+    Map<String, dynamic> storedTokenData = jsonDecode(storedToken);
+    String authToken = storedTokenData["token"]; // Extract only the token
+    String userId = storedTokenData["userId"]; // Extract the userId
+
+    print("🔹 Full Token Data: $storedToken");
+    print("🔹 Extracted Auth Token: $authToken");
+    print("🔹 Extracted User ID: $userId");
+
+    File imageFile = File(widget.imagePath);
+    List<int> imageBytes = await imageFile.readAsBytes();
+
+    Map<String, dynamic> runningData = {
+      "player_Id": playerId,
+      "start_Time": DateTime.now().toIso8601String(),
+      "finish_Time": DateTime.now().add(Duration(minutes: 5)).toIso8601String(),
+      "session_Info": "go",
+    };
+
+    var request = http.MultipartRequest(
+      "POST",
+      Uri.parse("https://api.jslpro.in:4661/capture"),
+    );
+
+    request.fields['runningDatajson'] = jsonEncode(runningData);
+
+    request.files.add(http.MultipartFile.fromBytes(
+      'image',
+      imageBytes,
+      filename: path.basename(imageFile.path),
+    ));
+
+    request.headers["Authorization"] = "Bearer $authToken"; // ✅ Token used here
+    request.headers["Accept"] = "application/json";
+    request.headers["Content-Type"] = "multipart/form-data";
+
+    var response = await request.send();
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200) {
+      _showSnackbar('Data saved successfully!');
+      print("✅ Running Data and Image uploaded successfully!");
+    } else {
+      print("❌ Failed to upload. Status code: ${response.statusCode}");
+      print("❌ Response Body: ${await response.stream.bytesToString()}");
+      _showSnackbar('Error uploading data.');
+    }
+  } catch (e) {
+    print("❌ Error making API request: $e");
+    _showSnackbar('Unexpected error occurred.');
+  }
+}
+
+DateTime? safeParseDate(String dateStr) {
+  try {
+    if (dateStr.isEmpty) return null; // Handle empty date strings
+    print("🔹 Trying to parse date: $dateStr");
+    return DateFormat("yyyy-MM-ddTHH:mm:ss").parse(dateStr, true); // Handles ISO 8601
+  } catch (e) {
+    print("❌ Invalid Date Format: $dateStr - Error: $e");
+    return null;
+  }
+}
   void _showFullScreenImage(BuildContext context, String imagePath) {
     showDialog(
       context: context,
@@ -237,151 +285,8 @@ class DetectionResultScreenState extends State<DetectionResultScreen> {
       print("❌ Error decoding token: $e");
     }
   }
- Future<void> _saveDetectionData() async {
-  if (!mounted) return;
 
-  if (playerId == null || playerNumber == null) {
-    print("🔹 Athlete data missing. Retrying load...");
-    await _loadAthleteData(); // ✅ Ensure athlete data is loaded
 
-    if (playerId == null || playerNumber == null) {
-      print("❌ Still no athlete selected!");
-      _showSnackbar('No athlete selected! Please reselect an athlete.');
-      return;
-    }
-  }
-
-  if (token == null || token!.isEmpty) {
-    _showSnackbar('Authentication token missing!');
-    return;
-  }
-
-  print("🔹 Token Before Sending API Request: $token");
-
-  File imageFile = File(widget.imagePath);
-  List<int> imageBytes = await imageFile.readAsBytes();
-
-  // ✅ Prepare JSON Data
-  Map<String, dynamic> runningData = {
-    "timings_id": playerId,
-    "player_Id": playerId,
-    "start_Time": widget.startTime,
-    "finish_Time": widget.endTime,
-    "session_Info": "Go"
-  };
-
-  print("🔹 JSON Data Sent to Server:\n${JsonEncoder.withIndent('  ').convert(runningData)}");
-
-  try {
-    var request = http.MultipartRequest(
-      "POST",
-      Uri.parse("https://api.jslpro.in:4661/capture"),
-    );
-
-    request.fields['runningData'] = jsonEncode(runningData);
-    request.files.add(http.MultipartFile.fromBytes(
-      'image',
-      imageBytes,
-      filename: path.basename(imageFile.path),
-    ));
-
-    request.headers["Authorization"] = "Bearer $token";
-    request.headers["Accept"] = "application/json";
-    request.headers["Content-Type"] = "multipart/form-data";
-
-    var response = await request.send();
-
-    if (!mounted) return;
-
-    if (response.statusCode == 200) {
-      _showSnackbar('Data saved successfully!');
-      print("✅ Running Data and Image uploaded successfully!");
-    } else {
-      print("❌ Failed to upload. Status code: ${response.statusCode}");
-      print("❌ Response Body: ${await response.stream.bytesToString()}");
-      _showSnackbar('Error uploading data.');
-    }
-  } catch (e) {
-    print("❌ Error making API request: $e");
-    _showSnackbar('Unexpected error occurred.');
-  }
-}
- 
-//When you perform asynchronous tasks (like API calls, delays, file reading),
-//the widget might be removed before the task finishes.
-//If you try to update the UI (setState()) after the widget is removed, Flutter will crash.
-//To prevent errors, we check if (mounted) before updating the UI.
-  // Future<void> _saveDetectionData() async {
-  //   if (!mounted) return;
-  //   if (playerId == null || playerNumber == null) {
-  //     print("🔹 Athlete data missing. Retrying load...");
-  //     await _loadAthleteData(); // ✅ Try to reload athlete data
-
-  //     if (playerId == null || playerNumber == null) {
-  //       _showSnackbar('No athlete selected!'); // ❌ Still missing? Show error
-  //       return;
-  //     }
-  //   }
-  //   if (token == null || token!.isEmpty) {
-  //     _showSnackbar('Authentication token missing!');
-  //     return;
-  //   }
-
-  //   print("🔹 Token Before Sending API Request: $token");
-
-  //   File imageFile = File(widget.imagePath);
-  //   List<int> imageBytes = await imageFile.readAsBytes();
-
-  //   // ✅ Prepare JSON Data
-  //   Map<String, dynamic> runningData = {
-  //     "timings_id": playerId,
-  //     "player_Id": playerId,
-  //     "start_Time": widget.startTime,
-  //     "finish_Time": widget.endTime,
-  //     "session_Info": "Go"
-  //   };
-
-  //   print(
-  //       "🔹 JSON Data Sent to Server:\n${JsonEncoder.withIndent('  ').convert(runningData)}");
-
-  //   try {
-  //     var request = http.MultipartRequest(
-  //       "POST",
-  //       Uri.parse("https://api.jslpro.in:4661/capture"),
-  //     );
-
-  //     // ✅ Attach JSON data as a field
-  //     request.fields['runningData'] = jsonEncode(runningData);
-
-  //     // ✅ Attach Image as MultipartFile
-  //     request.files.add(http.MultipartFile.fromBytes(
-  //       'image', // ✅ Must match @RequestParam("image") in backend
-  //       imageBytes,
-  //       filename: path.basename(imageFile.path),
-  //     ));
-
-  //     // ✅ Set Headers
-  //     request.headers["Authorization"] = "Bearer $token";
-  //     request.headers["Accept"] = "application/json";
-  //     request.headers["Content-Type"] = "multipart/form-data";
-
-  //     var response = await request.send();
-
-  //     if (!mounted) return;
-
-  //     if (response.statusCode == 200) {
-  //       _showSnackbar('Data saved successfully!');
-  //       print("✅ Running Data and Image uploaded successfully!");
-  //     } else {
-  //       print("❌ Failed to upload. Status code: ${response.statusCode}");
-  //       print("❌ Response Body: ${await response.stream.bytesToString()}");
-  //       _showSnackbar('Error uploading data.');
-  //     }
-  //   } catch (e) {
-  //     print("❌ Error making API request: $e");
-  //     _showSnackbar('Unexpected error occurred.');
-  //   }
-  // }
 
   /// ✅ Helper Function to Show Snackbar Safely
   void _showSnackbar(String message) {

@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, avoid_print
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -21,58 +21,61 @@ class _BasicModeScreenState extends State<BasicModeScreen> {
   @override
   void initState() {
     super.initState();
+    print("Navigated to BasicModeScreen with: ${Get.arguments}");
     _loadSelectedAthlete();
   }
 Future<void> _loadSelectedAthlete() async {
   final prefs = await SharedPreferences.getInstance();
   final athleteJson = prefs.getString('selectedAthlete');
 
-  if (athleteJson == null) {
-    final username = prefs.getString("user_identifier") ?? "Default Athlete"; // ✅ Get logged-in username
-    final userUuid = prefs.getString("user_uuid") ?? "default_uuid"; // ✅ Ensure UUID is included
-    Map<String, dynamic> defaultAthlete = {
-      "name": username, // ✅ Set name as username
-      "number": 1, // ✅ Default number is 1
-      "player_Id": userUuid,
-    };
-
-    print("✅ Storing Default Athlete: $defaultAthlete");
-    await prefs.setString("selectedAthlete", jsonEncode(defaultAthlete));
-
+  if (Get.arguments != null && Get.arguments is Map<String, dynamic>) {
     setState(() {
-      selectedAthlete = defaultAthlete;
+      selectedAthlete = Get.arguments;
     });
-  } else {
+    print("✅ Loaded Athlete from Arguments: $selectedAthlete"); // Debugging line
+    return;
+  }
+
+  if (athleteJson == null) {
+    print("❌ Athlete data is null! Retrying...");
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _loadSelectedAthlete();
+  }
+
+  try {
     Map<String, dynamic> athlete = jsonDecode(athleteJson);
 
-    // ✅ Ensure `player_Id` exists
-    if (!athlete.containsKey("player_Id")) {
-      print("❌ Missing player_Id! Fixing athlete data...");
-      athlete["player_Id"] = prefs.getString("user_uuid") ?? "default_uuid";
-      await prefs.setString("selectedAthlete", jsonEncode(athlete)); // ✅ Update athlete data
+    if (!athlete.containsKey("player_Id") || athlete["player_Id"] == null) {
+      print("❌ Invalid athlete data: Missing or null player_Id");
+      //_showSnackbar("Invalid athlete data! Please reselect athlete.");
+      return;
     }
 
     setState(() {
       selectedAthlete = athlete;
     });
+
+    print("✅ Loaded Athlete from SharedPreferences: ${athlete['name']} (ID: ${athlete['player_Id']})");
+  } catch (e) {
+    print("❌ Error parsing athlete data: $e");
   }
 }
-
-
   
  
   // Navigate to AddAthletePage and get the selected athlete
-  void _navigateToSelectAthlete() async {
-    final athlete = await Get.to(() => const AddAthletePage());
+ void _navigateToSelectAthlete() async {
+  final athlete = await Get.to(() => const AddAthletePage());
 
-    if (athlete != null && athlete is Map<String, dynamic>) {
-      setState(() {
-        selectedAthlete = athlete;
-      });
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('selectedAthlete', jsonEncode(athlete));
-    }
+  if (athlete != null && athlete is Map<String, dynamic>) {
+    setState(() {
+      selectedAthlete = athlete;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selectedAthlete', jsonEncode(athlete));
+    print("✅ Athlete saved: $athlete"); // Debugging line
   }
+} 
 
   @override
   Widget build(BuildContext context) {
@@ -143,32 +146,6 @@ Future<void> _loadSelectedAthlete() async {
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      // IconButton(
-                      //   onPressed: () {
-                      //     showDialog(
-                      //       context: context,
-                      //       builder: (BuildContext context) {
-                      //         return AlertDialog(
-                      //           title: const Text('Athlete'),
-                      //           content: const Text(
-                      //             "Athletes are assigned lap times to track individual performance during a session "
-                      //             "and review it later in the history. "
-                      //             "In Basic Mode, you can focus on timing just one athlete, keeping it simple and streamlined.",
-                      //           ),
-                      //           actions: [
-                      //             TextButton(
-                      //               onPressed: () {
-                      //                 Get.back();
-                      //               },
-                      //               child: const Text("OK"),
-                      //             ),
-                      //           ],
-                      //         );
-                      //       },
-                      //     );
-                      //   },
-                      //   icon: const Icon(Icons.help),
-                      // ),
                     ],
                   ),
 

@@ -166,83 +166,154 @@ class LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Get.toNamed('/login');
-          },
-        ),
-        title: const Text("Login", style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.black,
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Login Here",
-                  style: GoogleFonts.roboto(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 30,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: usernameController,
-                  decoration: InputDecoration(
-                    labelText: "Username",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+      backgroundColor: AppColors.primaryColor,
+      
+      body: Stack(
+        children: [
+          // Left Slanted Rope with Shadow Border
+          Positioned(
+            top: -110,
+            left: screenWidth * 0.37,
+            child: Transform.rotate(
+              angle: -0.4,
+              child: Container(
+                width: 30, // Adjusted to original width
+                height: screenHeight * 0.5,
+                decoration: BoxDecoration(
+                  color: AppColors.ropecolor, // Rope color
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.ropecolorborder, // Mild gray shadow
+                      spreadRadius: 2,
+                      blurRadius: 4,
+                      offset: Offset(2, 2), // Soft shadow effect
                     ),
-                    prefixIcon: const Icon(Icons.person, color: Colors.black),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: passwordController,
-                  obscureText: _obscureText,
-                  decoration: InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+
+// Right Slanted Rope with Shadow Border
+          Positioned(
+            top: -110,
+            right: screenWidth * 0.35,
+            child: Transform.rotate(
+              angle: 0.4,
+              child: Container(
+                width: 30,
+                height: screenHeight * 0.5,
+                decoration: BoxDecoration(
+                  color: AppColors.ropecolor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.ropecolorborder, // Mild gray shadow
+                      spreadRadius: 2,
+                      blurRadius: 4,
+                      offset:
+                          Offset(2, 2), // Shadow effect similar to left rope
                     ),
-                    prefixIcon: const Icon(Icons.lock, color: Colors.black),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureText ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.black,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Centered Login Box (ID Card)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // ID Card Container
+                    Container(
+                      padding: const EdgeInsets.all(20.0),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundColor,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscureText = !_obscureText;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _authenticateUser,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 15, horizontal: 80),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    "LOGIN",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                      child: Column(
+                        children: [
+                          Text(
+                            "Login Here",
+                            style: GoogleFonts.roboto(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 30,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // Username TextField
+                          TextField(
+                            controller: usernameController,
+                            decoration: InputDecoration(
+                              labelText: "Username",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: const Icon(Icons.person,
+                                  color: AppColors.primaryColor),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // Password TextField
+                          TextField(
+                            controller: passwordController,
+                            obscureText: _obscureText,
+                            decoration: InputDecoration(
+                              labelText: "Password",
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              prefixIcon: const Icon(Icons.lock,
+                                  color: AppColors.primaryColor),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureText
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: AppColors.primaryColor,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureText = !_obscureText;
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          // Login Button
+                          ElevatedButton(
+                            onPressed: _authenticateUser,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.boxcolor,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 15, horizontal: 80),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              "Login",
+                              style: TextStyle(
+                                  color: AppColors.backgroundColor,
+                                  fontSize: 18),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           // Forgot Password TextButton
                           TextButton(
                             onPressed: () {
@@ -269,10 +340,15 @@ class LoginPageState extends State<LoginPage> {
                                   fontWeight: FontWeight.bold),
                             ),
                           ),
-              ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
