@@ -73,7 +73,7 @@ Future<void> _loadSelectedAthlete() async {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selectedAthlete', jsonEncode(athlete));
-    print("✅ Athlete saved: $athlete"); // Debugging line
+    print(" Athlete saved: $athlete"); // Debugging line
   }
 } 
 
@@ -140,7 +140,7 @@ Future<void> _loadSelectedAthlete() async {
                   Row(
                     children: [
                       const Padding(
-                        padding: EdgeInsets.only(left: 8.0),
+                        padding: EdgeInsets.only(left: 8.0, top: 8),
                         child: Text(
                           "Athlete",
                           style: TextStyle(fontWeight: FontWeight.bold),

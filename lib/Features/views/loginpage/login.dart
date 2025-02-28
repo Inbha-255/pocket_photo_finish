@@ -103,7 +103,7 @@ class LoginPageState extends State<LoginPage> {
         Uri.parse(loginApiUrl),
         headers: {"Content-Type": "application/json", "Accept": "application/json"},
         body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 20));
 
       print("🔹 Response Status: ${response.statusCode}");
       print("🔹 Raw Response Body: '${response.body}'"); // Debugging

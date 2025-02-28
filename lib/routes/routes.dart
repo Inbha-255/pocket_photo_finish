@@ -3,7 +3,7 @@ import 'package:flutter_application_1/Features/views/homepage.dart';
 import 'package:flutter_application_1/Features/views/loginpage/forget.dart';
 import 'package:flutter_application_1/Features/views/loginpage/login.dart';
 import 'package:flutter_application_1/Features/views/loginpage/signup.dart';
-import 'package:flutter_application_1/Features/views/screen3.dart';
+import 'package:flutter_application_1/Features/views/history.dart';
 import 'package:flutter_application_1/Features/views/settings/about.dart';
 import 'package:flutter_application_1/Features/views/settings/faq.dart';
 import 'package:get/get.dart';

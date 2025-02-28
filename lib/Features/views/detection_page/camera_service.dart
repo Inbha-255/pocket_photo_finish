@@ -15,7 +15,7 @@ class CameraService {
     try {
       cameras = await availableCameras();
       _isInitialized = true;
-      debugPrint('✅ Cameras initialized successfully.');
+      debugPrint('Cameras initialized successfully.');
 
     } catch (e) {
       debugPrint('Error initializing cameras: $e');

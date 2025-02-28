@@ -16,7 +16,7 @@ class MyHttpOverrides extends HttpOverrides {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = MyHttpOverrides();
-  // ✅ Initialize SharedPreferences
+  // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   String? token = prefs.getString("auth_token");
   int? expiryTime = prefs.getInt("token_expiry");
@@ -26,7 +26,7 @@ void main() async {
   if (token != null && expiryTime != null) {
     int currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     if (currentTime < expiryTime) {
-      initialRoute = "/home"; // ✅ Token valid → Go to home
+      initialRoute = "/home"; // Token valid → Go to home
     } else {
       prefs.remove("auth_token"); // Remove expired token
       prefs.remove("token_expiry");
