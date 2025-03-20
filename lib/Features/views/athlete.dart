@@ -56,7 +56,7 @@ class _SelectAthletePageState extends State<SelectAthletePage> {
   // Get the token string from SharedPreferences.
   String? token = prefs.getString("auth_token");
   if (token == null) {
-    print("❌ Error: No token found");
+    print("Error: No token found");
     return;
   }
 
@@ -66,7 +66,7 @@ class _SelectAthletePageState extends State<SelectAthletePage> {
   // Extract the userId from the token data and use it as the player's UUID.
   String? userIdFromToken = tokenData["userId"];
   if (userIdFromToken == null) {
-    print("❌ Error: userId not found in token");
+    print("Error: userId not found in token");
     return;
   }
   String userUuid = userIdFromToken;
@@ -74,7 +74,7 @@ class _SelectAthletePageState extends State<SelectAthletePage> {
   // Extract the actual JWT so that we can check its expiry.
   String? actualJWT = tokenData["token"];
   if (actualJWT == null) {
-    print("❌ Error: Actual JWT not found in token data");
+    print("Error: Actual JWT not found in token data");
     return;
   }
 
@@ -85,11 +85,11 @@ class _SelectAthletePageState extends State<SelectAthletePage> {
     );
     int expiryTime = decodedToken["exp"] * 1000;
     if (DateTime.now().millisecondsSinceEpoch > expiryTime) {
-      print("❌ Error: Token has expired");
+      print(" Error: Token has expired");
       return;
     }
   } catch (e) {
-    print("❌ Error decoding token: $e");
+    print(" Error decoding token: $e");
     return;
   }
 
@@ -133,7 +133,7 @@ Future<void> _addAthlete({String? defaultName, int? defaultNumber}) async {
   final prefs = await SharedPreferences.getInstance();
   String? token = prefs.getString("auth_token");
   if (token == null) {
-    print("❌ No auth token found.");
+    print(" No auth token found.");
     return;
   }
  // Extract the token from JSON
@@ -143,18 +143,18 @@ Future<void> _addAthlete({String? defaultName, int? defaultNumber}) async {
   int numberToSend = defaultNumber ?? _selectedNumber ?? 1;
 
   if (nameToSend.isEmpty) {
-    print("❌ Name cannot be empty.");
+    print(" Name cannot be empty.");
     return;
   }
   
-  print("📤 Editing Athlete:");
-  print("🔹 Name: $nameToSend");
-  print("🔹 Number: $numberToSend");
+  print(" Editing Athlete:");
+  print(" Name: $nameToSend");
+  print(" Number: $numberToSend");
   
   try {
     final Uri uri = Uri.parse("$apiUrl/addAthlete?name=$nameToSend&number=$numberToSend");
-    print("🔹 Sending request to: $uri");
-    print("🔹 Auth Token: $token");
+    print(" Sending request to: $uri");
+    print("Auth Token: $token");
 
     final response = await http.post(
       uri,
@@ -167,8 +167,8 @@ Future<void> _addAthlete({String? defaultName, int? defaultNumber}) async {
       },
     );
 
-    print("🔹 Response Status Code: ${response.statusCode}");
-    print("🔹 Response Body: ${response.body}");
+    print(" Response Status Code: ${response.statusCode}");
+    print(" Response Body: ${response.body}");
 
     if (response.statusCode == 200 && _isMounted) {
       final List<dynamic> responseData = jsonDecode(response.body);
@@ -184,14 +184,14 @@ Future<void> _addAthlete({String? defaultName, int? defaultNumber}) async {
         _athletes = updatedAthletes;
         _updateAvailableNumbers();
       });
-      print("✅ Athletes Updated: $_athletes");
+      print("Athletes Updated: $_athletes");
     } else if (response.statusCode == 403) {
-      print("❌ Forbidden: You do not have permission to access this resource.");
+      print("Forbidden: You do not have permission to access this resource.");
     } else {
-      print("❌ Error Adding Athlete: ${response.body}");
+      print("Error Adding Athlete: ${response.body}");
     }
   } catch (e) {
-    print("❌ Exception while adding athlete: $e");
+    print(" Exception while adding athlete: $e");
   }
 }
 
@@ -199,21 +199,21 @@ Future<void> _addAthlete({String? defaultName, int? defaultNumber}) async {
     final prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString("auth_token");
     if (token == null) {
-      print("❌ No auth token found.");
+      print(" No auth token found.");
       return;
     }
     // Extract the token from JSON
   Map<String, dynamic> tokenData = jsonDecode(token);
   String? authToken = tokenData["token"]; // Fix: Extract authToken
-  print("🔹 Editing athlete with ID: $playerId");
+  print("Editing athlete with ID: $playerId");
 if (playerId.isEmpty) {
-  print("❌ Error: playerId is empty, cannot proceed with edit.");
+  print("Error: playerId is empty, cannot proceed with edit.");
   return;
 }
 
     try {
       final url = Uri.parse("$apiUrl/editAthlete/$playerId/$name/$number");
-      print("🔹 Sending Edit Request to: $url");
+      print("Sending Edit Request to: $url");
 
       final response = await http.put(
         url,
@@ -223,8 +223,8 @@ if (playerId.isEmpty) {
         },
       );
 
-      print("🔹 Response Status Code: ${response.statusCode}");
-      print("🔹 Response Body: ${response.body}");
+      print("Response Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
         // Parse the updated list of athletes from the response
@@ -233,12 +233,12 @@ if (playerId.isEmpty) {
           _athletes = updatedAthletes;
           _updateAvailableNumbers();
         });
-        print("✅ Athletes Updated: $_athletes");
+        print("Athletes Updated: $_athletes");
       } else {
-        print("❌ Error Updating Athlete: ${response.body}");
+        print("Error Updating Athlete: ${response.body}");
       }
     } catch (e) {
-      print("❌ Exception while updating athlete: $e");
+      print("Exception while updating athlete: $e");
     }
   }
 
@@ -263,7 +263,7 @@ if (playerId.isEmpty) {
           _athletes = updatedAthletes;
           _updateAvailableNumbers();
         });
-        print("✅ Athletes Updated: $_athletes");
+        print("Athletes Updated: $_athletes");
       }
     } catch (e) {
       print("Error deleting athlete: $e");
@@ -280,7 +280,7 @@ if (playerId.isEmpty) {
     playerId = athlete["player_Id"]; // Store player ID for editing
 
     if (playerId == null || playerId.isEmpty) {
-      print("❌ Error: Invalid playerId received for editing.");
+      print("Error: Invalid playerId received for editing.");
       return;
     }
     _selectedNumber = previousNumber;
@@ -293,7 +293,7 @@ if (playerId.isEmpty) {
       ? _availableNumbers.indexOf(_selectedNumber ?? _availableNumbers.first)
       : 0; // Ensure it doesn't crash if list is empty
 
-  print("🔹 Opening Dialog: ${athlete == null ? 'Create' : 'Edit'} Athlete");
+  print(" Opening Dialog: ${athlete == null ? 'Create' : 'Edit'} Athlete");
   if (!mounted) return;
 
   await showDialog(

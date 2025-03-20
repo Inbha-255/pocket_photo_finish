@@ -11,7 +11,7 @@ class StopwatchScreenApp extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: StopwatchScreen(cameras: cameras),
+      home: StopwatchScreen(cameras: cameras),//StopwatchScreen(cameras: cameras) →Passes the list of available cameras to StopwatchScreen.
     );
   }
 }
